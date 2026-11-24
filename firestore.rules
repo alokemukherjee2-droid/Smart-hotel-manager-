@@ -1,0 +1,608 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL PRIMITIVE HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOptString(data, key, maxLen) {
+      return !(key in data) || data[key] == null || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    function isOptInt(data, key, minVal) {
+      return !(key in data) || data[key] == null || (data[key] is int && data[key] >= minVal);
+    }
+
+    function isValidTimestamp(val) {
+      return val is timestamp && val <= request.time;
+    }
+
+    // --- ENTITY VALIDATION HELPERS (ANTI-UPDATE-GAP) ---
+    function isValidUserAccount(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+             data.email is string && data.email.size() <= 160 &&
+             data.activeHotelId is string && data.activeHotelId.size() >= 1 && data.activeHotelId.size() <= 128 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidHotelSettings(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 140 &&
+             data.address is string && data.address.size() <= 300 &&
+             data.city is string && data.city.size() <= 80 &&
+             data.state is string && data.state.size() <= 80 &&
+             data.pincode is string && data.pincode.size() <= 16 &&
+             data.phone is string && data.phone.size() <= 30 &&
+             data.email is string && data.email.size() <= 160 &&
+             data.gstin is string && data.gstin.size() <= 30 &&
+             data.upiId is string && data.upiId.size() <= 120 &&
+             data.upiMerchantName is string && data.upiMerchantName.size() <= 120 &&
+             data.bankName is string && data.bankName.size() <= 120 &&
+             data.bankAccountNumber is string && data.bankAccountNumber.size() <= 40 &&
+             data.bankIfsc is string && data.bankIfsc.size() <= 20 &&
+             data.checkInTime is string && data.checkInTime.size() <= 20 &&
+             data.checkOutTime is string && data.checkOutTime.size() <= 20 &&
+             data.cancellationPolicy is string && data.cancellationPolicy.size() <= 600 &&
+             data.gstEnabled is bool &&
+             data.gstSlabUnder7500 is number && data.gstSlabUnder7500 >= 0 && data.gstSlabUnder7500 <= 28 &&
+             data.gstSlabAbove7500 is number && data.gstSlabAbove7500 >= 0 && data.gstSlabAbove7500 <= 28 &&
+             data.gstMode in ['INTRA_STATE', 'INTER_STATE'] &&
+             data.invoicePrefix is string && data.invoicePrefix.size() >= 1 && data.invoicePrefix.size() <= 20 &&
+             data.nextInvoiceNumber is int && data.nextInvoiceNumber >= 1 &&
+             data.nextBookingSeq is int && data.nextBookingSeq >= 1 &&
+             data.demoSeeded is bool &&
+             isOptString(data, 'logoUri', 500) &&
+             isOptString(data, 'whatsappTemplateBooking', 1000) &&
+             isOptString(data, 'whatsappTemplateAdvance', 1000) &&
+             isOptString(data, 'whatsappTemplateCheckIn', 1000) &&
+             isOptString(data, 'whatsappTemplateCheckOut', 1000) &&
+             isOptString(data, 'whatsappTemplateReceipt', 1000) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidRoom(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.hotelId is string && isValidId(data.hotelId) &&
+             data.roomNumber is string && data.roomNumber.size() >= 1 && data.roomNumber.size() <= 24 &&
+             data.floor is string && data.floor.size() >= 1 && data.floor.size() <= 30 &&
+             data.roomType in ['SINGLE', 'DOUBLE', 'DELUXE', 'SUPER_DELUXE', 'FAMILY_ROOM', 'SUITE', 'DORMITORY'] &&
+             data.capacity is int && data.capacity >= 1 && data.capacity <= 30 &&
+             data.basePrice is number && data.basePrice >= 0 && data.basePrice <= 1000000 &&
+             data.extraPersonCharge is number && data.extraPersonCharge >= 0 && data.extraPersonCharge <= 100000 &&
+             data.seasonalPrice is number && data.seasonalPrice >= 0 && data.seasonalPrice <= 1000000 &&
+             data.seasonalActive is bool &&
+             data.status in ['AVAILABLE', 'OCCUPIED', 'RESERVED', 'CLEANING_REQUIRED', 'CLEANING_IN_PROGRESS', 'UNDER_MAINTENANCE', 'BLOCKED'] &&
+             data.amenities is list && data.amenities.size() <= 20 && (data.amenities.size() == 0 || data.amenities[0] is string) &&
+             isOptString(data, 'photoUri', 500) &&
+             isOptString(data, 'assignedStaffName', 100) &&
+             isOptString(data, 'housekeepingNotes', 500) &&
+             isOptString(data, 'maintenanceIssue', 500) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidGuest(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.hotelId is string && isValidId(data.hotelId) &&
+             data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 140 &&
+             data.mobile is string && data.mobile.size() >= 6 && data.mobile.size() <= 25 &&
+             isOptString(data, 'whatsapp', 25) &&
+             isOptString(data, 'email', 160) &&
+             isOptString(data, 'address', 300) &&
+             isOptString(data, 'city', 80) &&
+             isOptString(data, 'state', 80) &&
+             isOptString(data, 'country', 80) &&
+             isOptString(data, 'nationality', 80) &&
+             (!('idDocumentType' in data) || data.idDocumentType == null || data.idDocumentType in ['AADHAAR_MASKED', 'VOTER_ID', 'DRIVING_LICENCE', 'PASSPORT', 'OTHER_GOVT_ID', 'NONE']) &&
+             isOptString(data, 'maskedIdNumber', 60) &&
+             isOptString(data, 'vehicleNumber', 30) &&
+             isOptString(data, 'emergencyContact', 120) &&
+             data.foreignGuest is bool &&
+             isOptString(data, 'passportNumber', 40) &&
+             isOptString(data, 'visaNumber', 40) &&
+             isOptString(data, 'visaExpiry', 20) &&
+             data.cFormSubmitted is bool &&
+             isOptString(data, 'cFormChecklistNotes', 500) &&
+             data.lifetimeBookingCount is int && data.lifetimeBookingCount >= 0 && data.lifetimeBookingCount <= 10000 &&
+             data.completedStaysCount is int && data.completedStaysCount >= 0 && data.completedStaysCount <= 10000 &&
+             data.totalLifetimeSpend is number && data.totalLifetimeSpend >= 0 &&
+             isOptString(data, 'lastStayDate', 20) &&
+             isOptString(data, 'preferredRoomType', 40) &&
+             isOptString(data, 'hospitalityNotes', 600) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidBooking(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.hotelId is string && isValidId(data.hotelId) &&
+             data.bookingCode is string && data.bookingCode.size() >= 3 && data.bookingCode.size() <= 40 &&
+             data.guestId is string && isValidId(data.guestId) &&
+             data.guestName is string && data.guestName.size() >= 1 && data.guestName.size() <= 140 &&
+             data.guestMobile is string && data.guestMobile.size() >= 6 && data.guestMobile.size() <= 25 &&
+             isOptString(data, 'guestWhatsapp', 25) &&
+             isOptString(data, 'guestEmail', 160) &&
+             data.returningGuest is bool &&
+             data.guestLifetimeBookingsAtBooking is int && data.guestLifetimeBookingsAtBooking >= 0 &&
+             data.adults is int && data.adults >= 1 && data.adults <= 30 &&
+             data.children is int && data.children >= 0 && data.children <= 20 &&
+             data.roomCount is int && data.roomCount >= 1 && data.roomCount <= 20 &&
+             data.roomId is string && isValidId(data.roomId) &&
+             data.roomNumber is string && data.roomNumber.size() >= 1 && data.roomNumber.size() <= 24 &&
+             data.roomType in ['SINGLE', 'DOUBLE', 'DELUXE', 'SUPER_DELUXE', 'FAMILY_ROOM', 'SUITE', 'DORMITORY'] &&
+             data.bookingDateEpoch is int && data.bookingDateEpoch > 0 &&
+             data.checkInEpoch is int && data.checkInEpoch > 0 &&
+             data.checkOutEpoch is int && data.checkOutEpoch >= data.checkInEpoch &&
+             data.checkInTimeStr is string && data.checkInTimeStr.size() <= 20 &&
+             data.checkOutTimeStr is string && data.checkOutTimeStr.size() <= 20 &&
+             data.nights is int && data.nights >= 1 && data.nights <= 365 &&
+             data.nightlyRate is number && data.nightlyRate >= 0 &&
+             data.roomCharges is number && data.roomCharges >= 0 &&
+             data.extraChargesTotal is number && data.extraChargesTotal >= 0 &&
+             data.extraCharges is list && data.extraCharges.size() <= 50 && (data.extraCharges.size() == 0 || data.extraCharges[0] is map) &&
+             data.discount is number && data.discount >= 0 &&
+             data.taxableAmount is number && data.taxableAmount >= 0 &&
+             data.gstRate is number && data.gstRate >= 0 && data.gstRate <= 28 &&
+             data.cgstAmount is number && data.cgstAmount >= 0 &&
+             data.sgstAmount is number && data.sgstAmount >= 0 &&
+             data.igstAmount is number && data.igstAmount >= 0 &&
+             data.totalAmount is number && data.totalAmount >= 0 &&
+             data.advancePaid is number && data.advancePaid >= 0 &&
+             data.totalPaid is number && data.totalPaid >= 0 &&
+             data.balanceDue is number && data.balanceDue >= 0 &&
+             data.refundAmount is number && data.refundAmount >= 0 &&
+             data.bookingSource in ['DIRECT', 'PHONE', 'WHATSAPP', 'WALK_IN', 'WEBSITE', 'OTA', 'TRAVEL_AGENT'] &&
+             data.status in ['CONFIRMED', 'PENDING', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW'] &&
+             isOptString(data, 'specialRequests', 600) &&
+             isOptString(data, 'internalNotes', 600) &&
+             isOptString(data, 'guestSignatureName', 140) &&
+             isOptInt(data, 'actualCheckInEpoch', 0) &&
+             isOptInt(data, 'actualCheckOutEpoch', 0) &&
+             isOptString(data, 'creditApprovedBy', 140) &&
+             isOptString(data, 'creditExceptionReason', 400) &&
+             isOptString(data, 'invoiceId', 128) &&
+             isOptString(data, 'invoiceNumber', 60) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidRoomLock(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.hotelId is string && isValidId(data.hotelId) &&
+             data.roomId is string && isValidId(data.roomId) &&
+             data.bookingId is string && isValidId(data.bookingId) &&
+             data.dateKey is string && data.dateKey.size() == 8 && data.dateKey.matches('^[0-9]{8}$') &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidPayment(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.hotelId is string && isValidId(data.hotelId) &&
+             data.transactionCode is string && data.transactionCode.size() >= 3 && data.transactionCode.size() <= 50 &&
+             data.bookingId is string && isValidId(data.bookingId) &&
+             data.bookingCode is string && data.bookingCode.size() >= 3 && data.bookingCode.size() <= 40 &&
+             data.guestName is string && data.guestName.size() >= 1 && data.guestName.size() <= 140 &&
+             data.amount is number && data.amount > 0 && data.amount <= 10000000 &&
+             data.paymentMode in ['CASH', 'UPI', 'GOOGLE_PAY', 'PHONEPE', 'PAYTM', 'DEBIT_CARD', 'CREDIT_CARD', 'BANK_TRANSFER', 'PAYMENT_GATEWAY', 'OTHER'] &&
+             data.paymentStatus in ['VERIFIED', 'PENDING_VERIFICATION', 'REFUNDED', 'FAILED'] &&
+             isOptString(data, 'referenceNumber', 100) &&
+             isOptString(data, 'upiIdUsed', 120) &&
+             data.receivedBy is string && data.receivedBy.size() >= 1 && data.receivedBy.size() <= 120 &&
+             data.paymentEpoch is int && data.paymentEpoch > 0 &&
+             isOptString(data, 'notes', 500) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidInvoice(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.hotelId is string && isValidId(data.hotelId) &&
+             data.invoiceNumber is string && data.invoiceNumber.size() >= 3 && data.invoiceNumber.size() <= 60 &&
+             data.invoiceType in ['TAX_INVOICE', 'ADVANCE_RECEIPT'] &&
+             data.bookingId is string && isValidId(data.bookingId) &&
+             data.bookingCode is string && data.bookingCode.size() >= 3 && data.bookingCode.size() <= 40 &&
+             data.guestName is string && data.guestName.size() >= 1 && data.guestName.size() <= 140 &&
+             isOptString(data, 'guestAddress', 300) &&
+             isOptString(data, 'guestMobile', 25) &&
+             data.roomNumber is string && data.roomNumber.size() >= 1 && data.roomNumber.size() <= 24 &&
+             data.checkInDateStr is string && data.checkInDateStr.size() <= 30 &&
+             data.checkOutDateStr is string && data.checkOutDateStr.size() <= 30 &&
+             data.nights is int && data.nights >= 1 &&
+             data.roomCharges is number && data.roomCharges >= 0 &&
+             data.additionalServicesTotal is number && data.additionalServicesTotal >= 0 &&
+             data.discount is number && data.discount >= 0 &&
+             data.taxableAmount is number && data.taxableAmount >= 0 &&
+             data.gstRate is number && data.gstRate >= 0 && data.gstRate <= 28 &&
+             data.cgst is number && data.cgst >= 0 &&
+             data.sgst is number && data.sgst >= 0 &&
+             data.igst is number && data.igst >= 0 &&
+             data.grandTotal is number && data.grandTotal >= 0 &&
+             data.amountPaid is number && data.amountPaid >= 0 &&
+             data.balanceDue is number && data.balanceDue >= 0 &&
+             data.paymentMethod is string && data.paymentMethod.size() <= 60 &&
+             data.hotelName is string && data.hotelName.size() >= 1 && data.hotelName.size() <= 140 &&
+             data.hotelAddress is string && data.hotelAddress.size() <= 300 &&
+             data.hotelPhone is string && data.hotelPhone.size() <= 30 &&
+             isOptString(data, 'hotelGstin', 30) &&
+             data.issuedEpoch is int && data.issuedEpoch > 0 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidStaffMember(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.hotelId is string && isValidId(data.hotelId) &&
+             data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 140 &&
+             data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 25 &&
+             isOptString(data, 'email', 160) &&
+             data.role in ['OWNER', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING'] &&
+             data.active is bool &&
+             data.shift is string && data.shift.size() >= 1 && data.shift.size() <= 40 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAuditLog(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.hotelId is string && isValidId(data.hotelId) &&
+             data.actorName is string && data.actorName.size() >= 1 && data.actorName.size() <= 120 &&
+             data.actorRole is string && data.actorRole.size() >= 1 && data.actorRole.size() <= 40 &&
+             data.actionType is string && data.actionType.size() >= 1 && data.actionType.size() <= 60 &&
+             data.entityType is string && data.entityType.size() >= 1 && data.entityType.size() <= 40 &&
+             data.entityId is string && data.entityId.size() >= 1 && data.entityId.size() <= 128 &&
+             data.summary is string && data.summary.size() >= 1 && data.summary.size() <= 500 &&
+             data.timestampEpoch is int && data.timestampEpoch > 0 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    // --- COLLECTION RULES ---
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) && isValidId(userId) &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'email', 'activeHotelId', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'activeHotelId', 'createdAt', 'updatedAt']) &&
+                       isValidUserAccount(incoming(), userId);
+
+      allow update: if isOwner(userId) && isValidId(userId) &&
+                       isValidUserAccount(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'activeHotelId', 'updatedAt']);
+
+      allow delete: if false;
+
+      // 1. Hotels / Settings
+      match /hotels/{hotelId} {
+        allow get: if isOwner(userId) && isValidId(hotelId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(hotelId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'name', 'address', 'city', 'state', 'pincode', 'phone', 'email',
+                           'gstin', 'upiId', 'upiMerchantName', 'bankName', 'bankAccountNumber', 'bankIfsc',
+                           'checkInTime', 'checkOutTime', 'cancellationPolicy', 'gstEnabled',
+                           'gstSlabUnder7500', 'gstSlabAbove7500', 'gstMode', 'invoicePrefix',
+                           'nextInvoiceNumber', 'nextBookingSeq', 'demoSeeded', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'name', 'address', 'city', 'state', 'pincode', 'phone', 'email',
+                           'gstin', 'upiId', 'upiMerchantName', 'bankName', 'bankAccountNumber', 'bankIfsc',
+                           'checkInTime', 'checkOutTime', 'cancellationPolicy', 'gstEnabled',
+                           'gstSlabUnder7500', 'gstSlabAbove7500', 'gstMode', 'invoicePrefix',
+                           'nextInvoiceNumber', 'nextBookingSeq', 'demoSeeded', 'logoUri',
+                           'whatsappTemplateBooking', 'whatsappTemplateAdvance', 'whatsappTemplateCheckIn',
+                           'whatsappTemplateCheckOut', 'whatsappTemplateReceipt', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidHotelSettings(incoming(), userId);
+
+        allow update: if isOwner(userId) && isValidId(hotelId) &&
+                         isValidHotelSettings(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt && (
+                           // Action: Sequence increment during booking / invoice generation
+                           incoming().diff(existing()).affectedKeys().hasOnly(['nextInvoiceNumber', 'nextBookingSeq', 'demoSeeded', 'updatedAt']) ||
+                           // Action: Owner updates hotel configuration, GST, UPI, templates
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'name', 'address', 'city', 'state', 'pincode', 'phone', 'email',
+                             'gstin', 'upiId', 'upiMerchantName', 'bankName', 'bankAccountNumber', 'bankIfsc',
+                             'checkInTime', 'checkOutTime', 'cancellationPolicy', 'gstEnabled',
+                             'gstSlabUnder7500', 'gstSlabAbove7500', 'gstMode', 'invoicePrefix',
+                             'logoUri', 'whatsappTemplateBooking', 'whatsappTemplateAdvance',
+                             'whatsappTemplateCheckIn', 'whatsappTemplateCheckOut', 'whatsappTemplateReceipt',
+                             'demoSeeded', 'updatedAt'
+                           ])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(hotelId);
+      }
+
+      // 2. Rooms
+      match /rooms/{roomId} {
+        allow get: if isOwner(userId) && isValidId(roomId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(roomId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'hotelId', 'roomNumber', 'floor', 'roomType', 'capacity',
+                           'basePrice', 'extraPersonCharge', 'seasonalPrice', 'seasonalActive',
+                           'status', 'amenities', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'hotelId', 'roomNumber', 'floor', 'roomType', 'capacity',
+                           'basePrice', 'extraPersonCharge', 'seasonalPrice', 'seasonalActive',
+                           'status', 'amenities', 'photoUri', 'assignedStaffName',
+                           'housekeepingNotes', 'maintenanceIssue', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidRoom(incoming(), userId);
+
+        allow update: if isOwner(userId) && isValidId(roomId) &&
+                         isValidRoom(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().hotelId == existing().hotelId &&
+                         incoming().createdAt == existing().createdAt && (
+                           // Action: Housekeeping status / assignment / maintenance report
+                           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'assignedStaffName', 'housekeepingNotes', 'maintenanceIssue', 'updatedAt']) ||
+                           // Action: Full room configuration edit
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'roomNumber', 'floor', 'roomType', 'capacity', 'basePrice',
+                             'extraPersonCharge', 'seasonalPrice', 'seasonalActive', 'status',
+                             'amenities', 'photoUri', 'assignedStaffName', 'housekeepingNotes',
+                             'maintenanceIssue', 'updatedAt'
+                           ])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(roomId);
+      }
+
+      // 3. Guests & Stay History
+      match /guests/{guestId} {
+        allow get: if isOwner(userId) && isValidId(guestId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(guestId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'hotelId', 'fullName', 'mobile', 'lifetimeBookingCount',
+                           'completedStaysCount', 'totalLifetimeSpend', 'foreignGuest',
+                           'cFormSubmitted', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'hotelId', 'fullName', 'mobile', 'whatsapp', 'email',
+                           'address', 'city', 'state', 'country', 'nationality',
+                           'idDocumentType', 'maskedIdNumber', 'vehicleNumber', 'emergencyContact',
+                           'foreignGuest', 'passportNumber', 'visaNumber', 'visaExpiry',
+                           'cFormSubmitted', 'cFormChecklistNotes', 'lifetimeBookingCount',
+                           'completedStaysCount', 'totalLifetimeSpend', 'lastStayDate',
+                           'preferredRoomType', 'hospitalityNotes', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidGuest(incoming(), userId);
+
+        allow update: if isOwner(userId) && isValidId(guestId) &&
+                         isValidGuest(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().hotelId == existing().hotelId &&
+                         incoming().createdAt == existing().createdAt && (
+                           // Action: Increment stay history metrics on booking / checkout
+                           incoming().diff(existing()).affectedKeys().hasOnly(['lifetimeBookingCount', 'completedStaysCount', 'totalLifetimeSpend', 'lastStayDate', 'preferredRoomType', 'updatedAt']) ||
+                           // Action: Update guest registration / KYC / hospitality notes
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'fullName', 'mobile', 'whatsapp', 'email', 'address', 'city', 'state',
+                             'country', 'nationality', 'idDocumentType', 'maskedIdNumber',
+                             'vehicleNumber', 'emergencyContact', 'foreignGuest', 'passportNumber',
+                             'visaNumber', 'visaExpiry', 'cFormSubmitted', 'cFormChecklistNotes',
+                             'lifetimeBookingCount', 'completedStaysCount', 'totalLifetimeSpend',
+                             'lastStayDate', 'preferredRoomType', 'hospitalityNotes', 'updatedAt'
+                           ])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(guestId);
+      }
+
+      // 4. Bookings & Reservations (with Terminal State Locking)
+      match /bookings/{bookingId} {
+        allow get: if isOwner(userId) && isValidId(bookingId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(bookingId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'hotelId', 'bookingCode', 'guestId', 'guestName', 'guestMobile',
+                           'returningGuest', 'guestLifetimeBookingsAtBooking', 'adults', 'children',
+                           'roomCount', 'roomId', 'roomNumber', 'roomType', 'bookingDateEpoch',
+                           'checkInEpoch', 'checkOutEpoch', 'checkInTimeStr', 'checkOutTimeStr',
+                           'nights', 'nightlyRate', 'roomCharges', 'extraChargesTotal', 'extraCharges',
+                           'discount', 'taxableAmount', 'gstRate', 'cgstAmount', 'sgstAmount',
+                           'igstAmount', 'totalAmount', 'advancePaid', 'totalPaid', 'balanceDue',
+                           'refundAmount', 'bookingSource', 'status', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'hotelId', 'bookingCode', 'guestId', 'guestName', 'guestMobile',
+                           'guestWhatsapp', 'guestEmail', 'returningGuest', 'guestLifetimeBookingsAtBooking',
+                           'adults', 'children', 'roomCount', 'roomId', 'roomNumber', 'roomType',
+                           'bookingDateEpoch', 'checkInEpoch', 'checkOutEpoch', 'checkInTimeStr',
+                           'checkOutTimeStr', 'nights', 'nightlyRate', 'roomCharges', 'extraChargesTotal',
+                           'extraCharges', 'discount', 'taxableAmount', 'gstRate', 'cgstAmount',
+                           'sgstAmount', 'igstAmount', 'totalAmount', 'advancePaid', 'totalPaid',
+                           'balanceDue', 'refundAmount', 'bookingSource', 'status', 'specialRequests',
+                           'internalNotes', 'guestSignatureName', 'actualCheckInEpoch', 'actualCheckOutEpoch',
+                           'creditApprovedBy', 'creditExceptionReason', 'invoiceId', 'invoiceNumber',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidBooking(incoming(), userId);
+
+        allow update: if isOwner(userId) && isValidId(bookingId) &&
+                         isValidBooking(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().hotelId == existing().hotelId &&
+                         incoming().bookingCode == existing().bookingCode &&
+                         incoming().createdAt == existing().createdAt && (
+                           // Action: Post-terminal invoice linkage or refund accounting only
+                           (existing().status in ['CHECKED_OUT', 'CANCELLED', 'NO_SHOW'] &&
+                            incoming().status == existing().status &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['totalPaid', 'balanceDue', 'refundAmount', 'invoiceId', 'invoiceNumber', 'internalNotes', 'updatedAt'])) ||
+                           // Action: Active booking lifecycle (modify, check-in, extra charges, payment, checkout, cancel)
+                           (!(existing().status in ['CHECKED_OUT', 'CANCELLED', 'NO_SHOW']) &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'guestName', 'guestMobile', 'guestWhatsapp', 'guestEmail',
+                              'adults', 'children', 'roomCount', 'roomId', 'roomNumber', 'roomType',
+                              'checkInEpoch', 'checkOutEpoch', 'checkInTimeStr', 'checkOutTimeStr',
+                              'nights', 'nightlyRate', 'roomCharges', 'extraChargesTotal', 'extraCharges',
+                              'discount', 'taxableAmount', 'gstRate', 'cgstAmount', 'sgstAmount',
+                              'igstAmount', 'totalAmount', 'advancePaid', 'totalPaid', 'balanceDue',
+                              'refundAmount', 'bookingSource', 'status', 'specialRequests', 'internalNotes',
+                              'guestSignatureName', 'actualCheckInEpoch', 'actualCheckOutEpoch',
+                              'creditApprovedBy', 'creditExceptionReason', 'invoiceId', 'invoiceNumber',
+                              'updatedAt'
+                            ]))
+                         );
+
+        allow delete: if false;
+      }
+
+      // 5. Room Night Locks (Atomic Overlap Prevention)
+      match /roomLocks/{lockId} {
+        allow get: if isOwner(userId) && isValidId(lockId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(lockId) &&
+                         incoming().keys().hasAll(['userId', 'hotelId', 'roomId', 'bookingId', 'dateKey', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'hotelId', 'roomId', 'bookingId', 'dateKey', 'createdAt']) &&
+                         isValidRoomLock(incoming(), userId);
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(lockId);
+      }
+
+      // 6. Payments & UPI Reconciliation
+      match /payments/{paymentId} {
+        allow get: if isOwner(userId) && isValidId(paymentId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(paymentId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'hotelId', 'transactionCode', 'bookingId', 'bookingCode',
+                           'guestName', 'amount', 'paymentMode', 'paymentStatus', 'receivedBy',
+                           'paymentEpoch', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'hotelId', 'transactionCode', 'bookingId', 'bookingCode',
+                           'guestName', 'amount', 'paymentMode', 'paymentStatus', 'referenceNumber',
+                           'upiIdUsed', 'receivedBy', 'paymentEpoch', 'notes', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidPayment(incoming(), userId);
+
+        allow update: if isOwner(userId) && isValidId(paymentId) &&
+                         isValidPayment(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().hotelId == existing().hotelId &&
+                         incoming().transactionCode == existing().transactionCode &&
+                         incoming().bookingId == existing().bookingId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['paymentStatus', 'referenceNumber', 'notes', 'updatedAt']);
+
+        allow delete: if false;
+      }
+
+      // 7. GST Invoices & Receipts
+      match /invoices/{invoiceId} {
+        allow get: if isOwner(userId) && isValidId(invoiceId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(invoiceId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'hotelId', 'invoiceNumber', 'invoiceType', 'bookingId', 'bookingCode',
+                           'guestName', 'roomNumber', 'checkInDateStr', 'checkOutDateStr', 'nights',
+                           'roomCharges', 'additionalServicesTotal', 'discount', 'taxableAmount', 'gstRate',
+                           'cgst', 'sgst', 'igst', 'grandTotal', 'amountPaid', 'balanceDue', 'paymentMethod',
+                           'hotelName', 'hotelAddress', 'hotelPhone', 'issuedEpoch', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'hotelId', 'invoiceNumber', 'invoiceType', 'bookingId', 'bookingCode',
+                           'guestName', 'guestAddress', 'guestMobile', 'roomNumber', 'checkInDateStr',
+                           'checkOutDateStr', 'nights', 'roomCharges', 'additionalServicesTotal', 'discount',
+                           'taxableAmount', 'gstRate', 'cgst', 'sgst', 'igst', 'grandTotal', 'amountPaid',
+                           'balanceDue', 'paymentMethod', 'hotelName', 'hotelAddress', 'hotelPhone',
+                           'hotelGstin', 'issuedEpoch', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidInvoice(incoming(), userId);
+
+        allow update: if isOwner(userId) && isValidId(invoiceId) &&
+                         isValidInvoice(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().hotelId == existing().hotelId &&
+                         incoming().invoiceNumber == existing().invoiceNumber &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['amountPaid', 'balanceDue', 'paymentMethod', 'updatedAt']);
+
+        allow delete: if false;
+      }
+
+      // 8. Staff Members
+      match /staff/{staffId} {
+        allow get: if isOwner(userId) && isValidId(staffId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(staffId) &&
+                         incoming().keys().hasAll(['userId', 'hotelId', 'fullName', 'phone', 'role', 'active', 'shift', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'hotelId', 'fullName', 'phone', 'email', 'role', 'active', 'shift', 'createdAt', 'updatedAt']) &&
+                         isValidStaffMember(incoming(), userId);
+
+        allow update: if isOwner(userId) && isValidId(staffId) &&
+                         isValidStaffMember(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().hotelId == existing().hotelId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'phone', 'email', 'role', 'active', 'shift', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(staffId);
+      }
+
+      // 9. Audit Logs (Append-Only Immutable Trail)
+      match /auditLogs/{logId} {
+        allow get: if isOwner(userId) && isValidId(logId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(logId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'hotelId', 'actorName', 'actorRole', 'actionType',
+                           'entityType', 'entityId', 'summary', 'timestampEpoch', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'hotelId', 'actorName', 'actorRole', 'actionType',
+                           'entityType', 'entityId', 'summary', 'timestampEpoch', 'createdAt'
+                         ]) &&
+                         isValidAuditLog(incoming(), userId);
+
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+  }
+}

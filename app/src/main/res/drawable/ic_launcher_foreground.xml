@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Bold hospitality hotel building & golden arch crown emblem centered in 66dp safe zone -->
+    <path
+        android:fillColor="#D4A853"
+        android:pathData="M54,24 L61,32 L68,27 L66,37 L42,37 L40,27 L47,32 Z" />
+    <path
+        android:fillColor="#FFFDF8"
+        android:pathData="M34,40 H74 C75.7,40 77,41.3 77,43 V78 H63 V63 C63,58 59,54 54,54 C49,54 45,58 45,63 V78 H31 V43 C31,41.3 32.3,40 34,40 Z" />
+    <path
+        android:fillColor="#0F2744"
+        android:pathData="M37,46 H43 V51 H37 Z M51,46 H57 V51 H51 Z M65,46 H71 V51 H65 Z M37,56 H43 V61 H37 Z M65,56 H71 V61 H65 Z" />
+    <path
+        android:fillColor="#D4A853"
+        android:pathData="M27,78 H81 V83 H27 Z M51,63 C51,61.3 52.3,60 54,60 C55.7,60 57,61.3 57,63 V78 H51 Z" />
+</vector>

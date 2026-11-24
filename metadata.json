@@ -1,0 +1,6 @@
+{
+  "name": "Smart Hotel Manager",
+  "description": "Complete Indian hospitality Property Management System (PMS) with rooms, reservations, guest history, UPI QR payments, GST invoicing, housekeeping, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

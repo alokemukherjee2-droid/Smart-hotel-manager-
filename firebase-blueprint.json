@@ -1,0 +1,372 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "User Account",
+      "description": "Authenticated hotel operator account with active hotel selection.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID" },
+        "displayName": { "type": "string", "description": "Full display name" },
+        "email": { "type": "string", "format": "email", "description": "Verified Google email" },
+        "activeHotelId": { "type": "string", "description": "Currently selected hotel ID" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "displayName", "email", "activeHotelId", "createdAt", "updatedAt"]
+    },
+    "HotelSettings": {
+      "title": "Hotel Settings",
+      "description": "Property configuration, GST slabs, UPI QR details, bank details, and message templates.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "pincode": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "gstin": { "type": "string" },
+        "upiId": { "type": "string" },
+        "upiMerchantName": { "type": "string" },
+        "bankName": { "type": "string" },
+        "bankAccountNumber": { "type": "string" },
+        "bankIfsc": { "type": "string" },
+        "checkInTime": { "type": "string" },
+        "checkOutTime": { "type": "string" },
+        "cancellationPolicy": { "type": "string" },
+        "gstEnabled": { "type": "boolean" },
+        "gstSlabUnder7500": { "type": "number" },
+        "gstSlabAbove7500": { "type": "number" },
+        "gstMode": { "type": "string", "enum": ["INTRA_STATE", "INTER_STATE"] },
+        "invoicePrefix": { "type": "string" },
+        "nextInvoiceNumber": { "type": "integer" },
+        "nextBookingSeq": { "type": "integer" },
+        "demoSeeded": { "type": "boolean" },
+        "logoUri": { "type": "string" },
+        "whatsappTemplateBooking": { "type": "string" },
+        "whatsappTemplateAdvance": { "type": "string" },
+        "whatsappTemplateCheckIn": { "type": "string" },
+        "whatsappTemplateCheckOut": { "type": "string" },
+        "whatsappTemplateReceipt": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "name", "address", "city", "state", "pincode", "phone", "email",
+        "gstin", "upiId", "upiMerchantName", "bankName", "bankAccountNumber", "bankIfsc",
+        "checkInTime", "checkOutTime", "cancellationPolicy", "gstEnabled",
+        "gstSlabUnder7500", "gstSlabAbove7500", "gstMode", "invoicePrefix",
+        "nextInvoiceNumber", "nextBookingSeq", "demoSeeded", "createdAt", "updatedAt"
+      ]
+    },
+    "Room": {
+      "title": "Hotel Room",
+      "description": "Individual room inventory, pricing, amenities, photo, and live housekeeping status.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "floor": { "type": "string" },
+        "roomType": { "type": "string", "enum": ["SINGLE", "DOUBLE", "DELUXE", "SUPER_DELUXE", "FAMILY_ROOM", "SUITE", "DORMITORY"] },
+        "capacity": { "type": "integer" },
+        "basePrice": { "type": "number" },
+        "extraPersonCharge": { "type": "number" },
+        "seasonalPrice": { "type": "number" },
+        "seasonalActive": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["AVAILABLE", "OCCUPIED", "RESERVED", "CLEANING_REQUIRED", "CLEANING_IN_PROGRESS", "UNDER_MAINTENANCE", "BLOCKED"] },
+        "amenities": { "type": "array" },
+        "photoUri": { "type": "string" },
+        "assignedStaffName": { "type": "string" },
+        "housekeepingNotes": { "type": "string" },
+        "maintenanceIssue": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "hotelId", "roomNumber", "floor", "roomType", "capacity",
+        "basePrice", "extraPersonCharge", "seasonalPrice", "seasonalActive",
+        "status", "amenities", "createdAt", "updatedAt"
+      ]
+    },
+    "Guest": {
+      "title": "Guest Profile & Stay History",
+      "description": "Guest registry with masked Indian ID, foreign C-Form checklist, lifetime booking count, and hospitality preferences.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "mobile": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "country": { "type": "string" },
+        "nationality": { "type": "string" },
+        "idDocumentType": { "type": "string", "enum": ["AADHAAR_MASKED", "VOTER_ID", "DRIVING_LICENCE", "PASSPORT", "OTHER_GOVT_ID", "NONE"] },
+        "maskedIdNumber": { "type": "string" },
+        "vehicleNumber": { "type": "string" },
+        "emergencyContact": { "type": "string" },
+        "foreignGuest": { "type": "boolean" },
+        "passportNumber": { "type": "string" },
+        "visaNumber": { "type": "string" },
+        "visaExpiry": { "type": "string" },
+        "cFormSubmitted": { "type": "boolean" },
+        "cFormChecklistNotes": { "type": "string" },
+        "lifetimeBookingCount": { "type": "integer" },
+        "completedStaysCount": { "type": "integer" },
+        "totalLifetimeSpend": { "type": "number" },
+        "lastStayDate": { "type": "string" },
+        "preferredRoomType": { "type": "string" },
+        "hospitalityNotes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "hotelId", "fullName", "mobile", "lifetimeBookingCount",
+        "completedStaysCount", "totalLifetimeSpend", "foreignGuest",
+        "cFormSubmitted", "createdAt", "updatedAt"
+      ]
+    },
+    "Booking": {
+      "title": "Booking & Reservation",
+      "description": "Reservation, stay folio, extra charges, GST breakdown, and Returning Guest snapshot.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "bookingCode": { "type": "string" },
+        "guestId": { "type": "string" },
+        "guestName": { "type": "string" },
+        "guestMobile": { "type": "string" },
+        "guestWhatsapp": { "type": "string" },
+        "guestEmail": { "type": "string" },
+        "returningGuest": { "type": "boolean" },
+        "guestLifetimeBookingsAtBooking": { "type": "integer" },
+        "adults": { "type": "integer" },
+        "children": { "type": "integer" },
+        "roomCount": { "type": "integer" },
+        "roomId": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "roomType": { "type": "string" },
+        "bookingDateEpoch": { "type": "integer" },
+        "checkInEpoch": { "type": "integer" },
+        "checkOutEpoch": { "type": "integer" },
+        "checkInTimeStr": { "type": "string" },
+        "checkOutTimeStr": { "type": "string" },
+        "nights": { "type": "integer" },
+        "nightlyRate": { "type": "number" },
+        "roomCharges": { "type": "number" },
+        "extraChargesTotal": { "type": "number" },
+        "extraCharges": { "type": "array" },
+        "discount": { "type": "number" },
+        "taxableAmount": { "type": "number" },
+        "gstRate": { "type": "number" },
+        "cgstAmount": { "type": "number" },
+        "sgstAmount": { "type": "number" },
+        "igstAmount": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "advancePaid": { "type": "number" },
+        "totalPaid": { "type": "number" },
+        "balanceDue": { "type": "number" },
+        "refundAmount": { "type": "number" },
+        "bookingSource": { "type": "string", "enum": ["DIRECT", "PHONE", "WHATSAPP", "WALK_IN", "WEBSITE", "OTA", "TRAVEL_AGENT"] },
+        "status": { "type": "string", "enum": ["CONFIRMED", "PENDING", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "NO_SHOW"] },
+        "specialRequests": { "type": "string" },
+        "internalNotes": { "type": "string" },
+        "guestSignatureName": { "type": "string" },
+        "actualCheckInEpoch": { "type": "integer" },
+        "actualCheckOutEpoch": { "type": "integer" },
+        "creditApprovedBy": { "type": "string" },
+        "creditExceptionReason": { "type": "string" },
+        "invoiceId": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "hotelId", "bookingCode", "guestId", "guestName", "guestMobile",
+        "returningGuest", "guestLifetimeBookingsAtBooking", "adults", "children",
+        "roomCount", "roomId", "roomNumber", "roomType", "bookingDateEpoch",
+        "checkInEpoch", "checkOutEpoch", "checkInTimeStr", "checkOutTimeStr",
+        "nights", "nightlyRate", "roomCharges", "extraChargesTotal", "extraCharges",
+        "discount", "taxableAmount", "gstRate", "cgstAmount", "sgstAmount",
+        "igstAmount", "totalAmount", "advancePaid", "totalPaid", "balanceDue",
+        "refundAmount", "bookingSource", "status", "createdAt", "updatedAt"
+      ]
+    },
+    "RoomLock": {
+      "title": "Room Night Allocation Lock",
+      "description": "Atomic per-night room lock preventing overlapping reservations via Firestore transactions.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "roomId": { "type": "string" },
+        "bookingId": { "type": "string" },
+        "dateKey": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "hotelId", "roomId", "bookingId", "dateKey", "createdAt"]
+    },
+    "Payment": {
+      "title": "Payment Transaction",
+      "description": "Indian payment record including UPI QR pending verification and reconciliation.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "transactionCode": { "type": "string" },
+        "bookingId": { "type": "string" },
+        "bookingCode": { "type": "string" },
+        "guestName": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMode": { "type": "string", "enum": ["CASH", "UPI", "GOOGLE_PAY", "PHONEPE", "PAYTM", "DEBIT_CARD", "CREDIT_CARD", "BANK_TRANSFER", "PAYMENT_GATEWAY", "OTHER"] },
+        "paymentStatus": { "type": "string", "enum": ["VERIFIED", "PENDING_VERIFICATION", "REFUNDED", "FAILED"] },
+        "referenceNumber": { "type": "string" },
+        "upiIdUsed": { "type": "string" },
+        "receivedBy": { "type": "string" },
+        "paymentEpoch": { "type": "integer" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "hotelId", "transactionCode", "bookingId", "bookingCode",
+        "guestName", "amount", "paymentMode", "paymentStatus", "receivedBy",
+        "paymentEpoch", "createdAt", "updatedAt"
+      ]
+    },
+    "Invoice": {
+      "title": "GST Tax Invoice & Receipt",
+      "description": "Indian GST compliant hotel bill or advance payment receipt.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "invoiceType": { "type": "string", "enum": ["TAX_INVOICE", "ADVANCE_RECEIPT"] },
+        "bookingId": { "type": "string" },
+        "bookingCode": { "type": "string" },
+        "guestName": { "type": "string" },
+        "guestAddress": { "type": "string" },
+        "guestMobile": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "checkInDateStr": { "type": "string" },
+        "checkOutDateStr": { "type": "string" },
+        "nights": { "type": "integer" },
+        "roomCharges": { "type": "number" },
+        "additionalServicesTotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "taxableAmount": { "type": "number" },
+        "gstRate": { "type": "number" },
+        "cgst": { "type": "number" },
+        "sgst": { "type": "number" },
+        "igst": { "type": "number" },
+        "grandTotal": { "type": "number" },
+        "amountPaid": { "type": "number" },
+        "balanceDue": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "hotelName": { "type": "string" },
+        "hotelAddress": { "type": "string" },
+        "hotelPhone": { "type": "string" },
+        "hotelGstin": { "type": "string" },
+        "issuedEpoch": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "hotelId", "invoiceNumber", "invoiceType", "bookingId", "bookingCode",
+        "guestName", "roomNumber", "checkInDateStr", "checkOutDateStr", "nights",
+        "roomCharges", "additionalServicesTotal", "discount", "taxableAmount", "gstRate",
+        "cgst", "sgst", "igst", "grandTotal", "amountPaid", "balanceDue", "paymentMethod",
+        "hotelName", "hotelAddress", "hotelPhone", "issuedEpoch", "createdAt", "updatedAt"
+      ]
+    },
+    "StaffMember": {
+      "title": "Staff Member",
+      "description": "Hotel staff directory with role-based permissions.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["OWNER", "MANAGER", "RECEPTIONIST", "HOUSEKEEPING"] },
+        "active": { "type": "boolean" },
+        "shift": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "hotelId", "fullName", "phone", "role", "active", "shift", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "Audit Activity Log",
+      "description": "Immutable activity record for booking changes, payments, refunds, and cancellations.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "actorName": { "type": "string" },
+        "actorRole": { "type": "string" },
+        "actionType": { "type": "string" },
+        "entityType": { "type": "string" },
+        "entityId": { "type": "string" },
+        "summary": { "type": "string" },
+        "timestampEpoch": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "hotelId", "actorName", "actorRole", "actionType",
+        "entityType", "entityId", "summary", "timestampEpoch", "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Authenticated user account and active hotel selection"
+    },
+    "/users/{userId}/hotels/{hotelId}": {
+      "schema": { "$ref": "#/entities/HotelSettings" },
+      "description": "Hotel configuration, GST slabs, UPI QR details, and templates"
+    },
+    "/users/{userId}/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/Room" },
+      "description": "Hotel room inventory and housekeeping statuses"
+    },
+    "/users/{userId}/guests/{guestId}": {
+      "schema": { "$ref": "#/entities/Guest" },
+      "description": "Guest registry with stay history and lifetime booking count"
+    },
+    "/users/{userId}/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/Booking" },
+      "description": "Reservations, check-in/out records, and folios"
+    },
+    "/users/{userId}/roomLocks/{lockId}": {
+      "schema": { "$ref": "#/entities/RoomLock" },
+      "description": "Per-night atomic room locks preventing double-booking"
+    },
+    "/users/{userId}/payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/Payment" },
+      "description": "Payments, UPI QR verification queue, and refunds"
+    },
+    "/users/{userId}/invoices/{invoiceId}": {
+      "schema": { "$ref": "#/entities/Invoice" },
+      "description": "GST tax invoices and advance payment receipts"
+    },
+    "/users/{userId}/staff/{staffId}": {
+      "schema": { "$ref": "#/entities/StaffMember" },
+      "description": "Hotel staff profiles and role assignments"
+    },
+    "/users/{userId}/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Append-only operational audit trail"
+    }
+  }
+}
